@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMemos } from "@/lib/memo-store";
+import { refreshMemos, useMemoError, useMemos } from "@/lib/memo-store";
 import {
   CATEGORIES,
   previewOf,
@@ -13,6 +13,7 @@ import {
 import {
   CardHeader,
   Chip,
+  LoadError,
   MemoCard,
   MemoItem,
   PrimaryButton,
@@ -36,9 +37,16 @@ function Row({ memo }: { memo: Memo }) {
 
 export default function HomeScreen() {
   const memos = useMemos();
+  const error = useMemoError();
   const [filter, setFilter] = useState<Filter>("전체");
 
-  if (!memos) return <Screen top={64}>{null}</Screen>;
+  if (!memos) {
+    return (
+      <Screen top={64}>
+        {error ? <LoadError message={error} onRetry={refreshMemos} /> : null}
+      </Screen>
+    );
+  }
 
   const visible = memos
     .filter((m) => filter === "전체" || m.category === filter)

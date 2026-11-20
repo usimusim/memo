@@ -412,6 +412,23 @@ export function LabelDot({
   );
 }
 
+/** 메모를 받아 오지 못했을 때의 안내와 다시 시도 버튼 */
+export function LoadError({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div role="alert" className="flex flex-col gap-space-16 py-space-64 text-center">
+      <p className="text-title-md text-text-primary">메모를 불러오지 못했어요</p>
+      <p className="text-caption-sm break-words text-text-muted">{message}</p>
+      <SecondaryButton label="다시 시도" onClick={onRetry} />
+    </div>
+  );
+}
+
 /** 잠깐 보였다 사라지는 안내 */
 export function Toast({ message }: { message: string | null }) {
   if (!message) return null;

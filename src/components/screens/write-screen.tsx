@@ -8,8 +8,10 @@ import {
   clearDraft,
   getMemo,
   loadDraft,
+  refreshMemos,
   saveDraft,
   updateMemo,
+  useMemoError,
   useMemos,
   type Draft,
 } from "@/lib/memo-store";
@@ -25,6 +27,7 @@ import {
   FormatButton,
   IconButton,
   LabelDot,
+  LoadError,
   PrimaryButton,
   Screen,
 } from "../memo-ui";
@@ -35,7 +38,14 @@ const NONE: Active = { bold: false, h2: false, h3: false, list: false };
 export default function WriteScreen() {
   const id = useSearchParams().get("id");
   const memos = useMemos();
-  if (!memos) return <Screen top={48}>{null}</Screen>;
+  const loadError = useMemoError();
+  if (!memos) {
+    return (
+      <Screen top={48}>
+        {loadError ? <LoadError message={loadError} onRetry={refreshMemos} /> : null}
+      </Screen>
+    );
+  }
 
   const existing = id ? getMemo(id) : undefined;
   if (id && !existing) {
@@ -84,6 +94,7 @@ function WriteForm({
   const [color, setColor] = useState<MemoColor>(initial.color);
   const [status, setStatus] = useState(hasDraft ? "자동 저장됨" : "");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [active, setActive] = useState<Active>(NONE);
 
   // 처음 한 번: 본문을 편집기에 넣고, 엔터가 div가 아니라 p로 나뉘게 한다.
@@ -160,18 +171,27 @@ function WriteForm({
     scheduleAutosave();
   };
 
-  const save = () => {
+  const save = async () => {
+    if (saving) return;
     if (!title.trim()) {
       setError("제목을 입력해 주세요");
       return;
     }
     const input = { ...currentDraft(), title: title.trim() };
-    let target = id;
-    if (id) updateMemo(id, input);
-    else target = addMemo(input);
-    if (timer.current) clearTimeout(timer.current);
-    clearDraft(draftKey);
-    router.replace(`/memo?id=${target}`);
+    setSaving(true);
+    setError("");
+    try {
+      let target = id;
+      if (id) await updateMemo(id, input);
+      else target = await addMemo(input);
+      if (timer.current) clearTimeout(timer.current);
+      clearDraft(draftKey);
+      router.replace(`/memo?id=${target}`);
+    } catch (e) {
+      // 저장에 실패해도 쓴 글은 그대로 남는다.
+      setError(e instanceof Error ? e.message : "메모를 저장하지 못했어요.");
+      setSaving(false);
+    }
   };
 
   return (
@@ -243,7 +263,7 @@ function WriteForm({
         </div>
       </main>
 
-      <PrimaryButton label="저장하기" onClick={save} />
+      <PrimaryButton label={saving ? "저장 중…" : "저장하기"} onClick={save} />
     </Screen>
   );
 }

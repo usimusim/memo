@@ -4,11 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { IconChevronLeft, IconMore, IconPin, IconShare } from "../icons";
-import { removeMemo, togglePin, useMemos } from "@/lib/memo-store";
+import {
+  refreshMemos,
+  removeMemo,
+  togglePin,
+  useMemoError,
+  useMemos,
+} from "@/lib/memo-store";
 import { longDate, plainText, sanitizeHtml } from "@/lib/memo-utils";
 import {
   Badge,
   IconButton,
+  LoadError,
   Menu,
   MenuItem,
   PrimaryButton,
@@ -20,6 +27,7 @@ export default function MemoScreen() {
   const router = useRouter();
   const id = useSearchParams().get("id") ?? "";
   const memos = useMemos();
+  const error = useMemoError();
   const memo = memos?.find((m) => m.id === id);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -31,7 +39,13 @@ export default function MemoScreen() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  if (!memos) return <Screen top={48}>{null}</Screen>;
+  if (!memos) {
+    return (
+      <Screen top={48}>
+        {error ? <LoadError message={error} onRetry={refreshMemos} /> : null}
+      </Screen>
+    );
+  }
 
   if (!memo) {
     return (
@@ -65,17 +79,25 @@ export default function MemoScreen() {
     }
   };
 
-  const remove = () => {
+  const remove = async () => {
     setMenuOpen(false);
-    if (window.confirm("이 메모를 삭제할까요? 되돌릴 수 없어요.")) {
-      removeMemo(memo.id);
+    if (!window.confirm("이 메모를 삭제할까요? 되돌릴 수 없어요.")) return;
+    try {
+      await removeMemo(memo.id);
       router.replace("/");
+    } catch {
+      setToast("삭제하지 못했어요. 다시 시도해 주세요");
     }
   };
 
-  const pin = () => {
-    togglePin(memo.id);
-    setToast(memo.pinned ? "고정을 풀었어요" : "메모를 고정했어요");
+  const pin = async () => {
+    const wasPinned = memo.pinned;
+    try {
+      await togglePin(memo.id);
+      setToast(wasPinned ? "고정을 풀었어요" : "메모를 고정했어요");
+    } catch {
+      setToast("고정을 바꾸지 못했어요");
+    }
   };
 
   return (

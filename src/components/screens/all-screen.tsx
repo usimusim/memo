@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { IconChevronLeft } from "../icons";
-import { useMemos } from "@/lib/memo-store";
+import { refreshMemos, useMemoError, useMemos } from "@/lib/memo-store";
 import {
   CATEGORIES,
   plainText,
@@ -17,6 +17,7 @@ import {
   Chip,
   IconButton,
   InputSearch,
+  LoadError,
   MemoCard,
   MemoItem,
   Menu,
@@ -35,13 +36,20 @@ const PAGE = 20;
 export default function AllScreen() {
   const router = useRouter();
   const memos = useMemos();
+  const error = useMemoError();
   const [filter, setFilter] = useState<Filter>("전체");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("최신순");
   const [sortOpen, setSortOpen] = useState(false);
   const [limit, setLimit] = useState(PAGE);
 
-  if (!memos) return <Screen top={48} bottomPadding>{null}</Screen>;
+  if (!memos) {
+    return (
+      <Screen top={48} bottomPadding>
+        {error ? <LoadError message={error} onRetry={refreshMemos} /> : null}
+      </Screen>
+    );
+  }
 
   const q = query.trim().toLowerCase();
   const matched = memos
