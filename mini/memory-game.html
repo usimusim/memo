@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이모지 짝 맞추기</title>
+<style>
+  :root {
+    --accent: #6d5efc;
+    --accent-dark: #5646e6;
+    --ink: #16161d;
+    --muted: #6b6b7a;
+    --bg: #f6f6fb;
+    --line: #e4e4ee;
+    --size: min(94vw, calc(100vh - 220px));
+    --n: 12;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0 20px;
+  }
+  header { width: var(--size); text-align: center; }
+  h1 { font-size: 22px; margin-bottom: 8px; }
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 15px; color: var(--muted); min-height: 44px; }
+  .bar b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .btn {
+    border: 0; cursor: pointer;
+    padding: 10px 22px; border-radius: 999px;
+    background: var(--accent); color: #fff;
+    font-size: 15px; font-weight: 700;
+    transition: background .2s;
+  }
+  .btn:hover { background: var(--accent-dark); }
+  #status { flex-basis: 100%; font-weight: 700; color: var(--accent); min-height: 22px; }
+
+  #board {
+    width: var(--size); height: var(--size);
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(var(--n), 1fr);
+    grid-template-rows: repeat(var(--n), 1fr);
+    gap: 2px;
+    perspective: 800px;
+  }
+  .card { position: relative; cursor: pointer; }
+  .inner {
+    position: absolute; inset: 0;
+    transform-style: preserve-3d;
+    transition: transform .35s;
+  }
+  .card.open .inner { transform: rotateY(180deg); }
+  .face {
+    position: absolute; inset: 0;
+    backface-visibility: hidden;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 15%;
+    user-select: none;
+  }
+  .back { background: var(--accent); border: 1px solid var(--accent-dark); }
+  .back::after { content: ""; width: 34%; height: 34%; border-radius: 50%; background: rgba(255,255,255,.3); }
+  .front {
+    background: #fff; border: 1px solid var(--line);
+    transform: rotateY(180deg);
+    font-size: calc(var(--size) / var(--n) * 0.6);
+    line-height: 1;
+  }
+  .card.matched .front { background: #ece9ff; border-color: var(--accent); }
+  .card.matched { cursor: default; }
+  .locked .card:not(.open) { cursor: default; }
+  .card.blank { visibility: hidden; }
+
+  /* 짝 성공 효과 */
+  .card.matched .inner { animation: pop .55s ease-out; }
+  @keyframes pop {
+    0%   { transform: rotateY(180deg) scale(1); }
+    40%  { transform: rotateY(180deg) scale(1.35); }
+    100% { transform: rotateY(180deg) scale(1); }
+  }
+  .card.matched .front { box-shadow: 0 0 0 0 rgba(109,94,252,.7); animation: glow .7s ease-out; }
+  @keyframes glow { 0% { box-shadow: 0 0 0 0 rgba(109,94,252,.8); } 100% { box-shadow: 0 0 0 14px rgba(109,94,252,0); } }
+  .spark {
+    position: absolute; left: 50%; top: 50%;
+    font-size: calc(var(--size) / var(--n) * 0.35);
+    pointer-events: none; z-index: 5;
+    animation: fly .8s ease-out forwards;
+  }
+  @keyframes fly {
+    from { transform: translate(-50%, -50%) scale(.4); opacity: 1; }
+    to   { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.2); opacity: 0; }
+  }
+  .confetti {
+    position: fixed; top: -40px; z-index: 20; pointer-events: none;
+    animation: fall linear forwards;
+  }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); } }
+  #result { z-index: 10; }
+  .snd {
+    border: 1px solid var(--line); background: #fff; cursor: pointer;
+    padding: 8px 14px; border-radius: 999px; font-size: 14px;
+  }
+
+  .levels { display: flex; justify-content: center; gap: 8px; margin: 4px 0 6px; }
+  .lv {
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+    padding: 8px 16px; border-radius: 999px; cursor: pointer;
+    font-size: 14px; font-weight: 700;
+  }
+  .lv.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .lv:disabled { opacity: .5; cursor: default; }
+
+  #result {
+    position: fixed; inset: 0;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(22, 22, 29, .55);
+  }
+  #result.show { display: flex; }
+  #result .box { background: #fff; border-radius: 24px; padding: 40px 48px; text-align: center; }
+  #result h2 { font-size: 28px; margin-bottom: 12px; }
+  #result p { color: var(--muted); margin-bottom: 24px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🃏 이모지 짝 맞추기</h1>
+  <div class="levels" id="levels">
+    <button class="lv" data-n="5">5×5</button>
+    <button class="lv" data-n="8">8×8</button>
+    <button class="lv" data-n="10">10×10</button>
+    <button class="lv on" data-n="12">12×12</button>
+    <button class="snd" id="mute" title="소리 켜기/끄기">🔊</button>
+  </div>
+  <div class="bar">
+    <span>시간 <b id="time">0:00</b></span>
+    <span>시도 <b id="tries">0</b></span>
+    <span>맞춘 쌍 <b id="pairs">0</b>/<span id="total">72</span></span>
+    <button class="btn" id="start">게임 시작</button>
+    <div id="status">시작 버튼을 누르면 15초 동안 모든 카드를 보여줘요.</div>
+  </div>
+</header>
+
+<div id="board" class="locked"></div>
+
+<div id="result">
+  <div class="box">
+    <h2>🎉 완료!</h2>
+    <p id="resultText"></p>
+    <button class="btn" id="again">다시 하기</button>
+  </div>
+</div>
+
+<script>
+const PREVIEW_SECONDS = 15;
+let N = 12; // 한 변 칸 수: 5 | 8 | 10 | 12 (5×5는 가운데 칸을 비움)
+const EMOJIS = [
+  "🍎","🍊","🍋","🍌","🍉","🍇","🍓","🍒","🍑","🥝","🍍","🥥",
+  "🥑","🍅","🥕","🌽","🍄","🥦","🍔","🍕","🌭","🍟","🍩","🍪",
+  "🍰","🍫","🍿","🍦","🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼",
+  "🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🦆","🦉",
+  "🦋","🐢","🐍","🐙","🐬","🐳","🦀","🐠","⚽","🏀","🏈","🎾",
+  "🎲","🎸","🎺","🚗","🚀","🚲","⭐","🌙","🌞","🌈","🔥","💎"
+]; // 72종 × 2 = 144장
+
+const $ = id => document.getElementById(id);
+const board = $("board");
+let state = "ready"; // ready | preview | playing | won
+let cards = [];      // {emoji, el, matched}
+let picked = [];
+let tries = 0, pairs = 0;
+let timerId = null, previewId = null, startedAt = 0;
+
+/* ---------- 소리 (Web Audio, 외부 파일 없음) ---------- */
+let actx = null, master = null, bgmTimer = null, bgmStep = 0, bgmNext = 0, muted = false;
+const MEL = [523.25,659.25,783.99,659.25,880,783.99,659.25,587.33, 523.25,587.33,659.25,783.99,659.25,587.33,523.25,392];
+const BASS = [130.81,174.61,196,130.81];
+
+function audio() {
+  try {
+    if (!actx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      actx = new AC();
+      master = actx.createGain();
+      master.gain.value = muted ? 0 : 1;
+      master.connect(actx.destination);
+    }
+    if (actx.state === "suspended") actx.resume();
+    return actx;
+  } catch (e) { return null; }
+}
+function tone(freq, t, dur, type, vol) {
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+function sfx(kind) {
+  if (!audio()) return;
+  const t = actx.currentTime;
+  if (kind === "click") tone(660, t, 0.08, "triangle", 0.25);
+  if (kind === "miss") { tone(240, t, 0.18, "sawtooth", 0.08); tone(180, t + 0.1, 0.2, "sawtooth", 0.08); }
+  if (kind === "match") [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, t + i * 0.07, 0.25, "sine", 0.3));
+  if (kind === "win") [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5, 1318.5].forEach((f, i) => tone(f, t + i * 0.13, 0.4, "triangle", 0.3));
+}
+function bgmTick() {
+  while (bgmNext < actx.currentTime + 0.5) {
+    tone(MEL[bgmStep % 16], bgmNext, 0.3, "sine", 0.05);
+    if (bgmStep % 4 === 0) tone(BASS[(bgmStep / 4) % 4], bgmNext, 1.2, "triangle", 0.06);
+    bgmStep++; bgmNext += 0.35;
+  }
+}
+function startBgm() {
+  if (!audio() || bgmTimer) return;
+  bgmNext = actx.currentTime + 0.05;
+  bgmTimer = setInterval(bgmTick, 100);
+}
+function stopBgm() { clearInterval(bgmTimer); bgmTimer = null; }
+
+/* ---------- 시각 효과 ---------- */
+function sparkle(el) {
+  for (let i = 0; i < 6; i++) {
+    const s = document.createElement("span");
+    s.className = "spark";
+    s.textContent = "✨";
+    const ang = Math.PI * 2 * i / 6, d = 40 + Math.random() * 20;
+    s.style.setProperty("--dx", Math.cos(ang) * d + "px");
+    s.style.setProperty("--dy", Math.sin(ang) * d + "px");
+    el.appendChild(s);
+    setTimeout(() => s.remove(), 900);
+  }
+}
+function confetti() {
+  const list = ["🎉","✨","⭐","🎊","💜"];
+  for (let i = 0; i < 50; i++) {
+    const c = document.createElement("span");
+    c.className = "confetti";
+    c.textContent = list[i % list.length];
+    c.style.left = Math.random() * 100 + "vw";
+    c.style.fontSize = 18 + Math.random() * 18 + "px";
+    c.style.animationDuration = 2 + Math.random() * 2 + "s";
+    c.style.animationDelay = Math.random() * 0.8 + "s";
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 5200);
+  }
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function totalPairs() { return Math.floor(N * N / 2); }
+
+function build() {
+  board.innerHTML = "";
+  board.style.setProperty("--n", N);
+  document.documentElement.style.setProperty("--n", N);
+  $("total").textContent = totalPairs();
+  const set = shuffle([...EMOJIS]).slice(0, totalPairs());
+  const deck = shuffle([...set, ...set]);
+  if (N % 2 === 1) deck.splice(Math.floor(deck.length / 2), 0, null); // 홀수 칸: 가운데 빈 칸
+  cards = deck.map((emoji, i) => {
+    const el = document.createElement("div");
+    el.className = "card" + (emoji ? "" : " blank");
+    el.dataset.index = i;
+    el.innerHTML = '<div class="inner"><div class="face back"></div><div class="face front">' + (emoji || "") + '</div></div>';
+    if (emoji) el.addEventListener("click", () => onClick(i));
+    board.appendChild(el);
+    return { emoji, el, matched: !emoji };
+  });
+}
+
+function setLevel(n) {
+  clearInterval(timerId); clearInterval(previewId); stopBgm();
+  N = n; state = "ready"; picked = []; tries = 0; pairs = 0;
+  document.querySelectorAll(".lv").forEach(b => b.classList.toggle("on", +b.dataset.n === n));
+  $("tries").textContent = 0; $("pairs").textContent = 0; $("time").textContent = "0:00";
+  $("start").disabled = false; $("start").textContent = "게임 시작";
+  $("status").textContent = "시작 버튼을 누르면 " + PREVIEW_SECONDS + "초 동안 모든 카드를 보여줘요.";
+  board.classList.add("locked");
+  build();
+}
+function lockLevels(lock) { document.querySelectorAll(".lv").forEach(b => b.disabled = lock); }
+
+function fmt(s) { return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+
+function startGame() {
+  clearInterval(timerId); clearInterval(previewId);
+  $("result").classList.remove("show");
+  tries = 0; pairs = 0; picked = [];
+  $("tries").textContent = 0; $("pairs").textContent = 0; $("time").textContent = "0:00";
+  build();
+  state = "preview";
+  board.classList.add("locked");
+  $("start").disabled = true;
+  lockLevels(true);
+  startBgm();
+  cards.forEach(c => c.el.classList.add("open"));
+
+  let left = PREVIEW_SECONDS;
+  $("status").textContent = "외워두세요! " + left + "초 남음";
+  previewId = setInterval(() => {
+    left--;
+    if (left > 0) { $("status").textContent = "외워두세요! " + left + "초 남음"; return; }
+    clearInterval(previewId);
+    cards.forEach(c => c.el.classList.remove("open"));
+    state = "playing";
+    board.classList.remove("locked");
+    $("status").textContent = "시작! 같은 그림의 짝을 찾으세요.";
+    $("start").disabled = false;
+    lockLevels(false);
+    $("start").textContent = "다시 시작";
+    startedAt = Date.now();
+    timerId = setInterval(() => { $("time").textContent = fmt(Math.floor((Date.now() - startedAt) / 1000)); }, 250);
+  }, 1000);
+}
+
+function onClick(i) {
+  if (state !== "playing" || picked.length >= 2) return;
+  const c = cards[i];
+  if (c.matched || picked.includes(i)) return;
+  c.el.classList.add("open");
+  sfx("click");
+  picked.push(i);
+  if (picked.length < 2) return;
+
+  tries++; $("tries").textContent = tries;
+  const [a, b] = picked.map(k => cards[k]);
+  if (a.emoji === b.emoji) {
+    a.matched = b.matched = true;
+    a.el.classList.add("matched"); b.el.classList.add("matched");
+    sparkle(a.el); sparkle(b.el);
+    setTimeout(() => sfx("match"), 120);
+    picked = [];
+    pairs++; $("pairs").textContent = pairs;
+    if (pairs === totalPairs()) finish();
+  } else {
+    setTimeout(() => sfx("miss"), 250);
+    setTimeout(() => {
+      a.el.classList.remove("open"); b.el.classList.remove("open");
+      picked = [];
+    }, 700);
+  }
+}
+
+function finish() {
+  state = "won";
+  clearInterval(timerId);
+  stopBgm();
+  setTimeout(() => { sfx("win"); confetti(); }, 500);
+  const secs = Math.floor((Date.now() - startedAt) / 1000);
+  $("status").textContent = "모든 짝을 찾았어요!";
+  $("resultText").textContent = "시간 " + fmt(secs) + " · 시도 " + tries + "회";
+  $("result").classList.add("show");
+}
+
+$("mute").addEventListener("click", () => {
+  muted = !muted;
+  $("mute").textContent = muted ? "🔇" : "🔊";
+  if (master) master.gain.value = muted ? 0 : 1;
+});
+$("start").addEventListener("click", startGame);
+$("again").addEventListener("click", startGame);
+document.querySelectorAll(".lv").forEach(b => b.addEventListener("click", () => setLevel(+b.dataset.n)));
+setLevel(12); // 시작 전 보드(전부 닫힘)
+</script>
+</body>
+</html>

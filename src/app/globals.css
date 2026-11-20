@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+/* 디자인 토큰: Figma 변수·텍스트 스타일 이름과 같은 이름으로 쓴다. (CLAUDE.md 참고) */
+@theme inline {
+  /* 색: bg-surface-page, text-text-primary, border-border-default … */
+  --color-primary: #3182f6;
+  --color-surface-page: #f2f4f6;
+  --color-surface-card: #ffffff;
+  --color-text-primary: #191f28;
+  --color-text-secondary: #4e5968;
+  --color-text-muted: #8b95a1;
+  --color-text-on-primary: #ffffff;
+  --color-border-default: #e5e8eb;
+  --color-label-blue: #3182f6;
+  --color-label-blue-soft: #e8f3ff;
+  --color-label-green: #12a150;
+  --color-label-green-soft: #e3f8ec;
+  --color-label-orange: #f76808;
+  --color-label-orange-soft: #fff1e5;
+  --color-label-pink: #e5397a;
+  --color-label-pink-soft: #ffeaf1;
+
+  /* 간격: p-space-16, gap-space-8, mt-space-34 … */
+  --spacing-space-4: 4px;
+  --spacing-space-8: 8px;
+  --spacing-space-12: 12px;
+  --spacing-space-16: 16px;
+  --spacing-space-20: 20px;
+  --spacing-space-24: 24px;
+  --spacing-space-34: 34px;
+  --spacing-space-48: 48px;
+  --spacing-space-64: 64px;
+
+  /* 모서리: rounded-sm, rounded-md, rounded-lg, rounded-xl, rounded-full */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
+
+  /* 글꼴: font-sans = Noto Sans KR */
+  --font-sans: var(--font-noto-sans-kr), sans-serif;
+
+  /* 텍스트 스타일: text-heading-xl, text-body-md … (크기·줄 높이·자간·굵기 한 번에) */
+  --text-heading-xl: 28px;
+  --text-heading-xl--line-height: 38px;
+  --text-heading-xl--letter-spacing: -0.8px;
+  --text-heading-xl--font-weight: 700;
+
+  --text-heading-lg: 26px;
+  --text-heading-lg--line-height: 36px;
+  --text-heading-lg--letter-spacing: -0.8px;
+  --text-heading-lg--font-weight: 700;
+
+  --text-title-lg: 20px;
+  --text-title-lg--line-height: 28px;
+  --text-title-lg--letter-spacing: -0.4px;
+  --text-title-lg--font-weight: 700;
+
+  --text-title-md: 17px;
+  --text-title-md--line-height: 24px;
+  --text-title-md--letter-spacing: -0.3px;
+  --text-title-md--font-weight: 700;
+
+  --text-label-md: 15px;
+  --text-label-md--line-height: 22px;
+  --text-label-md--letter-spacing: -0.2px;
+  --text-label-md--font-weight: 700;
+
+  --text-body-md: 16px;
+  --text-body-md--line-height: 28px;
+  --text-body-md--letter-spacing: -0.2px;
+  --text-body-md--font-weight: 400;
+
+  --text-body-md-strong: 16px;
+  --text-body-md-strong--line-height: 28px;
+  --text-body-md-strong--letter-spacing: -0.2px;
+  --text-body-md-strong--font-weight: 700;
+
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 20px;
+  --text-body-sm--letter-spacing: -0.1px;
+  --text-body-sm--font-weight: 400;
+
+  --text-caption-md: 15px;
+  --text-caption-md--line-height: 22px;
+  --text-caption-md--letter-spacing: -0.2px;
+  --text-caption-md--font-weight: 500;
+
+  --text-caption-sm: 13px;
+  --text-caption-sm--line-height: 18px;
+  --text-caption-sm--letter-spacing: 0;
+  --text-caption-sm--font-weight: 500;
+
+  --text-button-md: 17px;
+  --text-button-md--line-height: 24px;
+  --text-button-md--letter-spacing: -0.2px;
+  --text-button-md--font-weight: 700;
+}
+
+/* 메모 본문(상세 화면·편집기 공통): 대제목, 소제목, 문단, 목록, 굵은 글씨 */
+@layer components {
+  .memo-body {
+    @apply text-body-md text-text-secondary;
+  }
+  .memo-body > * + * {
+    @apply mt-space-12;
+  }
+  .memo-editor > * + * {
+    @apply mt-space-8;
+  }
+  .memo-body h2 {
+    @apply text-title-lg text-text-primary;
+  }
+  .memo-body h3 {
+    @apply text-title-md text-text-primary;
+  }
+  .memo-body ul {
+    @apply flex list-disc flex-col gap-space-4 pl-space-20;
+  }
+  .memo-body strong,
+  .memo-body b {
+    @apply text-body-md-strong text-text-primary;
+  }
+  .memo-body :is(h2, h3) :is(strong, b) {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+  }
+  .memo-editor:empty::before {
+    content: attr(data-placeholder);
+    @apply text-text-muted;
+  }
+}
+
+body {
+  background: var(--color-surface-page);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  /* 한글은 단어 중간에서 줄을 바꾸지 않는다 */
+  word-break: keep-all;
+}
